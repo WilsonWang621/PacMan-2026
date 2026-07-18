@@ -61,7 +61,7 @@ python autograder.py -q q1
 
 #### Q2：BFS
 
-同 DFS，用深度优先搜索实现 `search.py` 中的 `breadthFirstSearch` 函数。
+同 DFS，用广度优先搜索实现 `search.py` 中的 `breadthFirstSearch` 函数。
 
 运行：
 
@@ -104,7 +104,7 @@ python autograder.py -q q3
 
 #### Q4：A* 搜索
 
-[介绍](https://github.com/ACMClassCourse-2023/PPCA-AIPacMan-2024/blob/main/docs/A*.md)
+[介绍](https://github.com/ACMClassCourse-2025/AIPacMan-2026/blob/main/docs/Astar.md)
 
 简单介绍启发式搜索：有一个启发式函数 $h$，在搜索时优先搜索值最小的方向。
 
