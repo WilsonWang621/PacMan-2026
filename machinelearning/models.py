@@ -160,7 +160,7 @@ class RegressionModel(Module):
                         dataset, batch_size=len(dataset)
                     )))
                     if self.get_loss(
-                            full_batch['x'], full_batch['label']).item() <= 0.015:
+                            full_batch['x'], full_batch['label']).item() <= 0.005:
                         break
 
 
@@ -238,14 +238,14 @@ class DigitClassificationModel(Module):
         dataloader = DataLoader(dataset, batch_size=100, shuffle=True)
         optimizer = optim.Adam(self.parameters(), lr=0.001)
 
-        for _ in range(15):
+        for _ in range(20):
             for batch in dataloader:
                 optimizer.zero_grad()
                 loss = self.get_loss(batch['x'], batch['label'])
                 loss.backward()
                 optimizer.step()
             with no_grad():
-                if dataset.get_validation_accuracy() >= 0.98:
+                if dataset.get_validation_accuracy() >= 0.99:
                     break
 
 
@@ -344,8 +344,11 @@ class LanguageIDModel(Module):
         """
         dataloader = DataLoader(dataset, batch_size=100, shuffle=True)
         optimizer = optim.Adam(self.parameters(), lr=0.001)
+        best_accuracy = 0.0
+        best_parameters = None
+        epochs_without_improvement = 0
 
-        for _ in range(25):
+        for epoch in range(60):
             for batch in dataloader:
                 xs = movedim(batch['x'], 0, 1)
                 optimizer.zero_grad()
@@ -353,8 +356,26 @@ class LanguageIDModel(Module):
                 loss.backward()
                 optimizer.step()
             with no_grad():
-                if dataset.get_validation_accuracy() >= 0.85:
+                accuracy = dataset.get_validation_accuracy()
+                if accuracy > best_accuracy:
+                    best_accuracy = accuracy
+                    best_parameters = [
+                        parameter.detach().clone()
+                        for parameter in self.parameters()
+                    ]
+                    epochs_without_improvement = 0
+                else:
+                    epochs_without_improvement += 1
+
+                if (accuracy >= 0.92
+                        or (epoch >= 25 and epochs_without_improvement >= 10)):
                     break
+
+        if best_parameters is not None:
+            with no_grad():
+                for parameter, best_parameter in zip(
+                        self.parameters(), best_parameters):
+                    parameter.copy_(best_parameter)
 
         
 
@@ -446,13 +467,34 @@ class DigitConvolutionalModel(Module):
         """
         dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=True)
         optimizer = optim.Adam(self.parameters(), lr=0.01)
+        best_accuracy = 0.0
+        best_parameters = None
+        epochs_without_improvement = 0
 
-        for _ in range(30):
+        for epoch in range(60):
             for batch in dataloader:
                 optimizer.zero_grad()
                 loss = self.get_loss(batch['x'], batch['label'])
                 loss.backward()
                 optimizer.step()
             with no_grad():
-                if dataset.get_validation_accuracy() >= 0.9:
+                accuracy = dataset.get_validation_accuracy()
+                if accuracy > best_accuracy:
+                    best_accuracy = accuracy
+                    best_parameters = [
+                        parameter.detach().clone()
+                        for parameter in self.parameters()
+                    ]
+                    epochs_without_improvement = 0
+                else:
+                    epochs_without_improvement += 1
+
+                if (accuracy >= 0.98
+                        or (epoch >= 20 and epochs_without_improvement >= 8)):
                     break
+
+        if best_parameters is not None:
+            with no_grad():
+                for parameter, best_parameter in zip(
+                        self.parameters(), best_parameters):
+                    parameter.copy_(best_parameter)

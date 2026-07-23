@@ -23,12 +23,14 @@ class DeepQNetwork(Module):
         super(DeepQNetwork, self).__init__()
         # Remember to set self.learning_rate, self.numTrainingGames,
         # and self.batch_size!
-        "*** YOUR CODE HERE ***"
-        self.learning_rate = 0
-        self.numTrainingGames = 0
-        self.batch_size = 0
+        self.hidden1 = Linear(state_dim, 128)
+        self.hidden2 = Linear(128, 64)
+        self.output = Linear(64, action_dim)
 
-        "**END CODE"""
+        self.learning_rate = 0.1
+        self.numTrainingGames = 4000
+        self.batch_size = 32
+        self.gradient_steps = 0
         self.double()
 
 
@@ -42,7 +44,11 @@ class DeepQNetwork(Module):
         Output:
             loss node between Q predictions and Q_target
         """
-        "*** YOUR CODE HERE ***"
+        if hasattr(Q_target, "to"):
+            Q_target = Q_target.to(dtype=double)
+        else:
+            Q_target = tensor(Q_target, dtype=double)
+        return mse_loss(self.forward(states), Q_target)
 
 
     def forward(self, states):
@@ -58,7 +64,13 @@ class DeepQNetwork(Module):
             result: (batch_size x num_actions) numpy array of Q-value
                 scores, for each of the actions
         """
-        "*** YOUR CODE HERE ***"
+        if hasattr(states, "to"):
+            states = states.to(dtype=double)
+        else:
+            states = tensor(states, dtype=double)
+        hidden = relu(self.hidden1(states))
+        hidden = relu(self.hidden2(hidden))
+        return self.output(hidden)
 
     
     def run(self, states):
@@ -77,4 +89,14 @@ class DeepQNetwork(Module):
         Output:
             None
         """
-        "*** YOUR CODE HERE ***"
+        learning_rate = (
+            self.learning_rate
+            if self.gradient_steps < 10000
+            else self.learning_rate * 0.3
+        )
+        optimizer = optim.SGD(self.parameters(), lr=learning_rate)
+        optimizer.zero_grad()
+        loss = self.get_loss(states, Q_target)
+        loss.backward()
+        optimizer.step()
+        self.gradient_steps += 1
