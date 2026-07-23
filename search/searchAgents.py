@@ -335,7 +335,7 @@ class CornersProblem(search.SearchProblem):
             if not self.walls[nextPosition[0]][nextPosition[1]]:
                 nextVisited = visitedCorners
                 if nextPosition in self.corners:
-                    nextVisited = visitedCorners | frozenset([nextPosition])
+                    nextVisited = visitedCorners | frozenset([nextPosition]) # 集合并集
                 successors.append(((nextPosition, nextVisited), action, 1))
 
         self._expanded += 1 # DO NOT CHANGE
@@ -381,7 +381,7 @@ def cornersHeuristic(state: Any, problem: CornersProblem):
     treeCost = 0
     connected = {remaining[0]}
     unconnected = set(remaining[1:])
-    while unconnected:
+    while unconnected: #找到最小生成树
         edgeCost, nextCorner = min(
             (util.manhattanDistance(source, target), target)
             for source in connected
@@ -391,7 +391,7 @@ def cornersHeuristic(state: Any, problem: CornersProblem):
         connected.add(nextCorner)
         unconnected.remove(nextCorner)
 
-    return distanceToTree + treeCost
+    return distanceToTree + treeCost  #会低估代价，因为实际上还会有墙壁等影响
 
 class AStarCornersAgent(SearchAgent):
     "A SearchAgent for FoodSearchProblem using A* and your foodHeuristic"
@@ -488,19 +488,19 @@ def foodHeuristic(state: Tuple[Tuple, List[List]], problem: FoodSearchProblem):
     if not foods:
         return 0
 
-    distanceMaps = problem.heuristicInfo.setdefault('foodDistanceMaps', {})
+    distanceMaps = problem.heuristicInfo.setdefault('foodDistanceMaps', {}) #空间换取时间 保存每个豆子到对应地图上每个点的距离
     for food in foods:
-        if food in distanceMaps:
+        if food in distanceMaps: 
             continue
 
         distances = {food: 0}
         frontier = util.Queue()
         frontier.push(food)
-        while not frontier.isEmpty():
+        while not frontier.isEmpty():  #BFS
             x, y = frontier.pop()
             for dx, dy in ((0, 1), (0, -1), (1, 0), (-1, 0)):
                 nextPosition = (x + dx, y + dy)
-                if (not problem.walls[nextPosition[0]][nextPosition[1]]
+                if (not problem.walls[nextPosition[0]][nextPosition[1]] #考虑真实墙壁
                         and nextPosition not in distances):
                     distances[nextPosition] = distances[(x, y)] + 1
                     frontier.push(nextPosition)
