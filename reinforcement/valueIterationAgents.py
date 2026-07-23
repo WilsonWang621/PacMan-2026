@@ -29,7 +29,6 @@
 import mdp, util
 
 from learningAgents import ValueEstimationAgent
-import collections
 
 class ValueIterationAgent(ValueEstimationAgent):
     """
@@ -64,7 +63,16 @@ class ValueIterationAgent(ValueEstimationAgent):
           Run the value iteration algorithm. Note that in standard
           value iteration, V_k+1(...) depends on V_k(...)'s.
         """
-        "*** YOUR CODE HERE ***"
+        for _ in range(self.iterations):
+            nextValues = util.Counter()
+            for state in self.mdp.getStates():
+                actions = self.mdp.getPossibleActions(state)
+                if actions:
+                    nextValues[state] = max(
+                        self.computeQValueFromValues(state, action)
+                        for action in actions
+                    )
+            self.values = nextValues
 
 
     def getValue(self, state):
@@ -78,7 +86,14 @@ class ValueIterationAgent(ValueEstimationAgent):
           Compute the Q-value of action in state from the
           value function stored in self.values.
         """
-        "*** YOUR CODE HERE ***"
+        return sum(
+            probability * (
+                self.mdp.getReward(state, action, nextState)
+                + self.discount * self.values[nextState]
+            )
+            for nextState, probability
+            in self.mdp.getTransitionStatesAndProbs(state, action)
+        )
  
 
     def computeActionFromValues(self, state):
@@ -90,7 +105,11 @@ class ValueIterationAgent(ValueEstimationAgent):
           there are no legal actions, which is the case at the
           terminal state, you should return None.
         """
-        "*** YOUR CODE HERE ***"
+        actions = self.mdp.getPossibleActions(state)
+        if not actions:
+            return None
+        return max(actions, key=lambda action:
+                   self.computeQValueFromValues(state, action))
 
 
     def getPolicy(self, state):
@@ -102,5 +121,4 @@ class ValueIterationAgent(ValueEstimationAgent):
 
     def getQValue(self, state, action):
         return self.computeQValueFromValues(state, action)
-
 

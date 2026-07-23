@@ -199,7 +199,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
                 bestAction = action
         return bestAction
 
-class AlphaBetaAgent(MultiAgentSearchAgent):
+class AlphaBetaAgent(MultiAgentSearchAgent): # Minimax 返回值 = Alpha-Beta 返回值 理论上二者的最优动作价值相同，但 Alpha-Beta 通常生成更少的后继状态。
     """
     Your minimax agent with alpha-beta pruning (question 3)
     """
