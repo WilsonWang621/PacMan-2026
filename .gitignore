@@ -1,0 +1,34 @@
+# Python bytecode and test caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments and local configuration
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# IDE and operating-system metadata
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Runtime logs and temporary files
+*.log
+*.tmp
+recorded-game-*
+
+# Locally trained model checkpoints
+*.ckpt
+*.pt
+*.pth
