@@ -8,7 +8,9 @@ import subprocess
 import sys
 import threading
 import tkinter as tk
+import tkinter.font as tkfont
 from tkinter import messagebox, ttk
+from pathlib import Path
 
 from launcher_core import (
     DIFFICULTIES,
@@ -38,6 +40,51 @@ COLORS = {
     "red": "#ff647c",
 }
 
+FONT_CANDIDATES = (
+    "Noto Sans CJK SC",
+    "WenQuanYi Micro Hei",
+    "Microsoft YaHei",
+    "SimHei",
+    "Droid Sans Fallback",
+)
+MONO_FONT_CANDIDATES = (
+    "Noto Sans Mono CJK SC",
+    "WenQuanYi Micro Hei Mono",
+    "Noto Sans CJK SC",
+)
+
+GHOST_LABELS = {
+    "随机移动（简单）": "RandomGhost",
+    "主动追踪（困难）": "DirectionalGhost",
+}
+GHOST_NAMES = {value: key for key, value in GHOST_LABELS.items()}
+
+LAYOUT_NAMES = {
+    "smallClassic": "小型经典（smallClassic）",
+    "mediumClassic": "中型经典（mediumClassic）",
+    "trickyClassic": "复杂经典（trickyClassic）",
+    "contestClassic": "竞赛地图（contestClassic）",
+    "capsuleClassic": "能量豆地图（capsuleClassic）",
+    "openClassic": "开放地图（openClassic）",
+    "originalClassic": "原版经典（originalClassic）",
+    "powerClassic": "强化地图（powerClassic）",
+    "tinyMaze": "微型迷宫（tinyMaze）",
+    "smallMaze": "小型迷宫（smallMaze）",
+    "mediumMaze": "中型迷宫（mediumMaze）",
+    "bigMaze": "大型迷宫（bigMaze）",
+    "openMaze": "开放迷宫（openMaze）",
+    "tinyCorners": "微型四角（tinyCorners）",
+    "mediumCorners": "中型四角（mediumCorners）",
+    "bigCorners": "大型四角（bigCorners）",
+    "smallSearch": "小型全食物（smallSearch）",
+    "mediumSearch": "中型全食物（mediumSearch）",
+    "bigSearch": "大型全食物（bigSearch）",
+    "trickySearch": "复杂搜索（trickySearch）",
+    "smallGrid": "小型训练场（smallGrid）",
+    "mediumGrid": "中型训练场（mediumGrid）",
+}
+LAYOUT_IDS = {value: key for key, value in LAYOUT_NAMES.items()}
+
 
 class PacmanLauncher(tk.Tk):
     def __init__(self):
@@ -47,14 +94,52 @@ class PacmanLauncher(tk.Tk):
         self.minsize(980, 690)
         self.configure(bg=COLORS["bg"])
         self.process = None
+        self.game_python = os.environ.get(
+            "PACMAN_GAME_PYTHON", sys.executable
+        )
         self.output_queue = queue.Queue()
         self._difficulty_buttons = {}
+        self._configure_fonts()
         self._build_style()
         self._build_ui()
         self._set_mode(MODE_MULTI)
         self._apply_difficulty("标准")
         self.after(100, self._drain_output)
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+
+    def _configure_fonts(self):
+        available = set(tkfont.families(self))
+        self.ui_family = next(
+            (name for name in FONT_CANDIDATES if name in available),
+            "TkDefaultFont",
+        )
+        self.mono_family = next(
+            (name for name in MONO_FONT_CANDIDATES if name in available),
+            self.ui_family,
+        )
+        for font_name in (
+            "TkDefaultFont", "TkTextFont", "TkMenuFont",
+            "TkHeadingFont", "TkCaptionFont", "TkSmallCaptionFont",
+            "TkIconFont", "TkTooltipFont",
+        ):
+            try:
+                tkfont.nametofont(font_name).configure(
+                    family=self.ui_family
+                )
+            except tk.TclError:
+                pass
+        self.option_add("*Font", (self.ui_family, 10))
+        self.option_add(
+            "*TCombobox*Listbox.font", (self.ui_family, 10)
+        )
+        self.option_add("*Menu.font", (self.ui_family, 10))
+
+    def _font(self, size, bold=False, mono=False):
+        return (
+            self.mono_family if mono else self.ui_family,
+            size,
+            "bold" if bold else "normal",
+        )
 
     def _build_style(self):
         style = ttk.Style(self)
@@ -69,6 +154,7 @@ class PacmanLauncher(tk.Tk):
             lightcolor=COLORS["border"],
             darkcolor=COLORS["border"],
             padding=8,
+            font=self._font(10),
         )
         style.map(
             "Arena.TCombobox",
@@ -84,6 +170,7 @@ class PacmanLauncher(tk.Tk):
             arrowcolor=COLORS["cyan"],
             bordercolor=COLORS["border"],
             padding=7,
+            font=self._font(10),
         )
         style.configure(
             "Arena.Horizontal.TScale",
@@ -132,19 +219,19 @@ class PacmanLauncher(tk.Tk):
             logo.create_oval(x, 65, x + 8, 73, fill=color, outline="")
 
         tk.Label(
-            header, text="PACMAN AI ARENA", bg=COLORS["bg"],
-            fg=COLORS["text"], font=("DejaVu Sans", 25, "bold")
+            header, text="吃豆人 AI 综合演示平台", bg=COLORS["bg"],
+            fg=COLORS["text"], font=self._font(25, bold=True)
         ).grid(row=0, column=1, sticky="sw")
         tk.Label(
             header,
             text="搜索 · 博弈 · 强化学习 — 在一个控制台中启动",
             bg=COLORS["bg"], fg=COLORS["muted"],
-            font=("DejaVu Sans", 11)
+            font=self._font(11)
         ).grid(row=1, column=1, sticky="nw", pady=(4, 0))
 
         self.status_pill = tk.Label(
             header, text="●  准备就绪", bg="#12352f", fg=COLORS["green"],
-            padx=14, pady=8, font=("DejaVu Sans", 10, "bold")
+            padx=14, pady=8, font=self._font(10, bold=True)
         )
         self.status_pill.grid(row=0, column=2, rowspan=2, sticky="e")
 
@@ -157,14 +244,14 @@ class PacmanLauncher(tk.Tk):
     def _section_title(self, parent, text, row):
         label = tk.Label(
             parent, text=text.upper(), bg=COLORS["panel"],
-            fg=COLORS["cyan"], font=("DejaVu Sans", 9, "bold")
+            fg=COLORS["cyan"], font=self._font(9, bold=True)
         )
         label.grid(row=row, column=0, columnspan=4, sticky="w", pady=(4, 9))
 
     def _field_label(self, parent, text, row, column):
         tk.Label(
             parent, text=text, bg=COLORS["panel"], fg=COLORS["muted"],
-            font=("DejaVu Sans", 9)
+            font=self._font(9)
         ).grid(row=row, column=column, sticky="w", pady=(0, 5))
 
     def _build_controls(self):
@@ -199,7 +286,7 @@ class PacmanLauncher(tk.Tk):
                 difficulty_row, text=level, relief="flat", bd=0,
                 cursor="hand2", command=lambda item=level:
                 self._apply_difficulty(item),
-                font=("DejaVu Sans", 10, "bold"), pady=9,
+                font=self._font(10, bold=True), pady=9,
             )
             button.grid(
                 row=0, column=index, sticky="ew",
@@ -229,10 +316,12 @@ class PacmanLauncher(tk.Tk):
 
         self._field_label(frame, "幽灵行为", 7, 0)
         self._field_label(frame, "幽灵数量", 7, 2)
-        self.ghost_var = tk.StringVar(value="DirectionalGhost")
+        self.ghost_var = tk.StringVar(
+            value=GHOST_NAMES["DirectionalGhost"]
+        )
         self.ghost_combo = ttk.Combobox(
             frame, textvariable=self.ghost_var,
-            values=("RandomGhost", "DirectionalGhost"),
+            values=tuple(GHOST_LABELS),
             state="readonly", style="Arena.TCombobox"
         )
         self.ghost_combo.grid(
@@ -292,7 +381,7 @@ class PacmanLauncher(tk.Tk):
             variable=self.fixed_seed_var, bg=COLORS["panel"],
             fg=COLORS["muted"], activebackground=COLORS["panel"],
             activeforeground=COLORS["text"], selectcolor=COLORS["panel2"],
-            font=("DejaVu Sans", 9)
+            font=self._font(9)
         )
         self.fixed_seed.grid(
             row=12, column=0, columnspan=4, sticky="w", pady=(13, 0)
@@ -313,20 +402,20 @@ class PacmanLauncher(tk.Tk):
         frame.grid_rowconfigure(3, weight=1)
 
         tk.Label(
-            frame, text="READY PLAYER ONE", bg=COLORS["panel"],
-            fg=COLORS["pink"], font=("DejaVu Sans", 9, "bold")
+            frame, text="当前游戏配置", bg=COLORS["panel"],
+            fg=COLORS["pink"], font=self._font(9, bold=True)
         ).grid(row=0, column=0, sticky="w")
         self.summary_label = tk.Label(
             frame, text="", justify="left", wraplength=360,
             bg=COLORS["panel"], fg=COLORS["text"],
-            font=("DejaVu Sans", 15, "bold")
+            font=self._font(15, bold=True)
         )
         self.summary_label.grid(row=1, column=0, sticky="ew", pady=(9, 16))
 
         self.command_box = tk.Text(
             frame, height=5, wrap="word", bg="#081422", fg=COLORS["cyan"],
             insertbackground=COLORS["cyan"], relief="flat", padx=12, pady=12,
-            font=("DejaVu Sans Mono", 9)
+            font=self._font(9, mono=True)
         )
         self.command_box.grid(row=2, column=0, sticky="ew", pady=(0, 14))
         self.command_box.configure(state="disabled")
@@ -339,12 +428,13 @@ class PacmanLauncher(tk.Tk):
         log_frame.grid_columnconfigure(0, weight=1)
         log_frame.grid_rowconfigure(1, weight=1)
         tk.Label(
-            log_frame, text="  LIVE CONSOLE", bg="#06101c",
-            fg=COLORS["muted"], font=("DejaVu Sans", 8, "bold")
+            log_frame, text="  实时运行日志", bg="#06101c",
+            fg=COLORS["muted"], font=self._font(8, bold=True)
         ).grid(row=0, column=0, sticky="w", pady=7)
         self.log = tk.Text(
             log_frame, wrap="word", bg="#06101c", fg="#b8c9db",
-            relief="flat", padx=10, pady=5, font=("DejaVu Sans Mono", 8),
+            relief="flat", padx=10, pady=5,
+            font=self._font(8, mono=True),
             state="disabled"
         )
         self.log.grid(row=1, column=0, sticky="nsew")
@@ -357,7 +447,7 @@ class PacmanLauncher(tk.Tk):
             actions, text="▶  启动游戏", command=self._launch,
             bg=COLORS["yellow"], fg="#172033", activebackground="#ffe16f",
             activeforeground="#172033", relief="flat", bd=0,
-            cursor="hand2", pady=12, font=("DejaVu Sans", 11, "bold")
+            cursor="hand2", pady=12, font=self._font(11, bold=True)
         )
         self.launch_button.grid(row=0, column=0, sticky="ew", padx=(0, 6))
         self.stop_button = tk.Button(
@@ -365,14 +455,17 @@ class PacmanLauncher(tk.Tk):
             bg=COLORS["panel2"], fg=COLORS["muted"],
             activebackground=COLORS["red"], activeforeground=COLORS["text"],
             relief="flat", bd=0, cursor="hand2", pady=12,
-            font=("DejaVu Sans", 11, "bold"), state="disabled"
+            font=self._font(11, bold=True), state="disabled"
         )
         self.stop_button.grid(row=0, column=1, sticky="ew", padx=(6, 0))
 
     def _set_mode(self, mode):
         self.mode_var.set(mode)
         algorithms = algorithms_for(mode)
-        layouts = layouts_for(mode)
+        layouts = [
+            LAYOUT_NAMES.get(layout_id, layout_id)
+            for layout_id in layouts_for(mode)
+        ]
         self.algorithm_combo.configure(values=algorithms)
         self.layout_combo.configure(values=layouts)
         self.algorithm_var.set(algorithms[0])
@@ -409,8 +502,12 @@ class PacmanLauncher(tk.Tk):
         if not self.mode_var.get():
             return
         profile = difficulty_profile(level, self.mode_var.get())
-        self.layout_var.set(profile["layout"])
-        self.ghost_var.set(profile["ghost"])
+        self.layout_var.set(
+            LAYOUT_NAMES.get(profile["layout"], profile["layout"])
+        )
+        self.ghost_var.set(
+            GHOST_NAMES.get(profile["ghost"], profile["ghost"])
+        )
         self.ghosts_var.set(profile["ghosts"])
         self.depth_var.set(profile["depth"])
         self.training_var.set(profile["training"])
@@ -421,8 +518,12 @@ class PacmanLauncher(tk.Tk):
         config = LaunchConfig(
             mode=self.mode_var.get(),
             algorithm=self.algorithm_var.get(),
-            layout=self.layout_var.get(),
-            ghost=self.ghost_var.get(),
+            layout=LAYOUT_IDS.get(
+                self.layout_var.get(), self.layout_var.get()
+            ),
+            ghost=GHOST_LABELS.get(
+                self.ghost_var.get(), self.ghost_var.get()
+            ),
             ghosts=int(self.ghosts_var.get()),
             depth=int(self.depth_var.get()),
             games=int(self.games_var.get()),
@@ -430,14 +531,23 @@ class PacmanLauncher(tk.Tk):
             speed=float(self.speed_var.get()),
             fixed_seed=bool(self.fixed_seed_var.get()),
         )
-        return build_launch_spec(config)
+        return build_launch_spec(
+            config, python_executable=self.game_python
+        )
 
     def _update_preview(self):
         if not hasattr(self, "command_box") or not self.algorithm_var.get():
             return
         try:
             spec = self._current_spec()
-            self.summary_label.configure(text=spec.summary)
+            self.summary_label.configure(
+                text="{} · {}\n地图：{}　难度：{}".format(
+                    self.mode_var.get(),
+                    self.algorithm_var.get(),
+                    self.layout_var.get(),
+                    self.difficulty_var.get(),
+                )
+            )
             command = spec.display_command
         except (ValueError, tk.TclError) as error:
             self.summary_label.configure(text="请检查参数")
@@ -545,7 +655,40 @@ class PacmanLauncher(tk.Tk):
         self.destroy()
 
 
+def _ensure_chinese_capable_tk():
+    """
+    Conda's Linux Tk build may only expose legacy X11 fonts.
+
+    If that happens, transparently reopen the launcher with the system Tk,
+    which can see fontconfig's CJK fonts. The originally selected Python is
+    retained for child Pacman processes, so Conda dependencies still work.
+    """
+    if (not sys.platform.startswith("linux")
+            or os.environ.get("PACMAN_LAUNCHER_REEXEC") == "1"):
+        return
+
+    probe = tk.Tk()
+    probe.withdraw()
+    available = set(tkfont.families(probe))
+    probe.destroy()
+    if any(name in available for name in FONT_CANDIDATES):
+        return
+
+    system_python = Path("/usr/bin/python3")
+    if not system_python.exists():
+        return
+    environment = os.environ.copy()
+    environment["PACMAN_LAUNCHER_REEXEC"] = "1"
+    environment["PACMAN_GAME_PYTHON"] = sys.executable
+    os.execve(
+        str(system_python),
+        [str(system_python), str(Path(__file__).resolve())] + sys.argv[1:],
+        environment,
+    )
+
+
 def main():
+    _ensure_chinese_capable_tk()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--dry-run", action="store_true",
@@ -554,15 +697,20 @@ def main():
     args = parser.parse_args()
     if args.dry_run:
         profile = difficulty_profile("标准", MODE_MULTI)
-        spec = build_launch_spec(LaunchConfig(
-            mode=MODE_MULTI,
-            algorithm=algorithms_for(MODE_MULTI)[0],
-            layout=profile["layout"],
-            ghost=profile["ghost"],
-            ghosts=profile["ghosts"],
-            depth=profile["depth"],
-            speed=profile["speed"],
-        ))
+        spec = build_launch_spec(
+            LaunchConfig(
+                mode=MODE_MULTI,
+                algorithm=algorithms_for(MODE_MULTI)[0],
+                layout=profile["layout"],
+                ghost=profile["ghost"],
+                ghosts=profile["ghosts"],
+                depth=profile["depth"],
+                speed=profile["speed"],
+            ),
+            python_executable=os.environ.get(
+                "PACMAN_GAME_PYTHON", sys.executable
+            ),
+        )
         print(spec.display_command)
         return
     PacmanLauncher().mainloop()
@@ -570,4 +718,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
